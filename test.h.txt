@@ -1,0 +1,183 @@
+// test.cpp — Requerimiento 8: casos que compilan y casos que NO compilan
+// Incluye tipos fundamentales y clases propias (Coordenada, Vector3D)
+//
+// Para ver los casos que NO compilan: descomenta las líneas marcadas con
+//   // [NO COMPILA] y verás el error de concept en tiempo de compilación.
+
+#include <iostream>
+#include <vector>
+#include <string>
+#include "concepts.h"
+#include "sum.h"
+#include "mean.h"
+#include "variance.h"
+#include "max.h"
+#include "transform_reduce.h"
+#include "variadic.h"
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Clases propias para demostrar concepts con objetos
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Vector3D: cumple Addable, Divisible y Comparable → funciona con todos los algoritmos
+struct Vector3D {
+    double x, y, z;
+
+    Vector3D(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
+
+    // operator+ → cumple Addable
+    Vector3D operator+(const Vector3D& otro) const {
+        return {x + otro.x, y + otro.y, z + otro.z};
+    }
+
+    // operator- → necesario para variance (d = valor - promedio)
+    Vector3D operator-(const Vector3D& otro) const {
+        return {x - otro.x, y - otro.y, z - otro.z};
+    }
+
+    // operator* → necesario para variance (d * d)
+    Vector3D operator*(const Vector3D& otro) const {
+        return {x * otro.x, y * otro.y, z * otro.z};
+    }
+
+    // operator/ size_t → cumple Divisible
+    Vector3D operator/(std::size_t n) const {
+        return {x / n, y / n, z / n};
+    }
+
+    // operator< y operator> → cumple Comparable (compara módulo)
+    bool operator<(const Vector3D& otro) const {
+        return (x*x + y*y + z*z) < (otro.x*otro.x + otro.y*otro.y + otro.z*otro.z);
+    }
+    bool operator>(const Vector3D& otro) const { return otro < *this; }
+
+    friend std::ostream& operator<<(std::ostream& os, const Vector3D& v) {
+        return os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+    }
+};
+
+// Coordenada: solo tiene operator+ → cumple Addable pero NO Divisible ni Comparable
+// Por eso falla en mean, variance y max.
+struct Coordenada {
+    double lat, lon;
+
+    Coordenada(double lat = 0, double lon = 0) : lat(lat), lon(lon) {}
+
+    // operator+ → cumple Addable
+    Coordenada operator+(const Coordenada& otro) const {
+        return {lat + otro.lat, lon + otro.lon};
+    }
+
+    // NO tiene operator/ → NO cumple Divisible
+    // NO tiene operator< → NO cumple Comparable
+
+    friend std::ostream& operator<<(std::ostream& os, const Coordenada& c) {
+        return os << "[" << c.lat << ", " << c.lon << "]";
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+int main() {
+
+    std::cout << "========================================" << std::endl;
+    std::cout << "  CASOS QUE COMPILAN" << std::endl;
+    std::cout << "========================================" << std::endl;
+
+    // ── Tipos fundamentales ───────────────────────────────────────────────
+
+    // int cumple Addable, Divisible, Comparable → todo funciona
+    std::vector<int> vi{10, 20, 30, 40};
+    std::cout << "[int] sum:      " << core_numeric::sum(vi)      << std::endl; // 100
+    std::cout << "[int] mean:     " << core_numeric::mean(vi)     << std::endl; // 25
+    std::cout << "[int] variance: " << core_numeric::variance(vi) << std::endl; // 125
+    std::cout << "[int] max:      " << core_numeric::max(vi)      << std::endl; // 40
+
+    // double cumple Addable, Divisible, Comparable → todo funciona
+    std::vector<double> vd{1.0, 2.0, 3.0};
+    std::cout << "[double] sum:      " << core_numeric::sum(vd)      << std::endl; // 6
+    std::cout << "[double] mean:     " << core_numeric::mean(vd)     << std::endl; // 2
+    std::cout << "[double] variance: " << core_numeric::variance(vd) << std::endl; // 0.666...
+    std::cout << "[double] max:      " << core_numeric::max(vd)      << std::endl; // 3
+
+    // transform_reduce: x^2 sobre doubles
+    auto tr = core_numeric::transform_reduce(vd, [](double x){ return x * x; });
+    std::cout << "[double] transform_reduce(x^2): " << tr << std::endl; // 14
+
+    // Variadic con tipos fundamentales
+    std::cout << "[variadic] sum_variadic(1,2,3,4):      "
+              << core_numeric::sum_variadic(1, 2, 3, 4) << std::endl; // 10
+    std::cout << "[variadic] mean_variadic(1.0,2.0,3.0): "
+              << core_numeric::mean_variadic(1.0, 2.0, 3.0) << std::endl; // 2
+    std::cout << "[variadic] variance_variadic(1.0,2.0,3.0,4.0): "
+              << core_numeric::variance_variadic(1.0, 2.0, 3.0, 4.0) << std::endl; // 1.25
+    std::cout << "[variadic] max_variadic(3,1,4,1,5,9): "
+              << core_numeric::max_variadic(3, 1, 4, 1, 5, 9) << std::endl; // 9
+
+    // ── Clases propias ────────────────────────────────────────────────────
+
+    // Vector3D cumple todos los concepts → funciona en todos los algoritmos
+    std::vector<Vector3D> vv{
+        {1.0, 0.0, 0.0},
+        {0.0, 2.0, 0.0},
+        {0.0, 0.0, 3.0}
+    };
+    std::cout << "[Vector3D] sum:  " << core_numeric::sum(vv)  << std::endl;
+    std::cout << "[Vector3D] mean: " << core_numeric::mean(vv) << std::endl;
+    std::cout << "[Vector3D] max:  " << core_numeric::max(vv)  << std::endl;
+
+    // Coordenada cumple Addable → sum funciona
+    std::vector<Coordenada> vc{
+        {10.0, 20.0},
+        {30.0, 40.0}
+    };
+    std::cout << "[Coordenada] sum: " << core_numeric::sum(vc) << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << "  CASOS QUE NO COMPILAN (comentados)" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << "Ver comentarios en el codigo fuente." << std::endl;
+
+    // ── std::string: no es numérico ───────────────────────────────────────
+
+    // std::vector<std::string> vs{"a", "b", "c"};
+
+    // [NO COMPILA] — concept Addable falla:
+    //   std::string + std::string existe PERO devuelve std::string,
+    //   y Addable requiere same_as<T>. En realidad string sí cumpliría Addable,
+    //   pero NO cumple Divisible (no hay string/size_t) ni Comparable numérico.
+    // auto s = core_numeric::sum(vs);
+
+    // [NO COMPILA] — concept Divisible falla:
+    //   std::string no tiene operator/(size_t)
+    // auto m = core_numeric::mean(vs);
+
+    // [NO COMPILA] — concept Comparable falla (Comparable requiere Addable numérico):
+    // auto mx = core_numeric::max(vs);
+
+    // ── Coordenada: no cumple Divisible ni Comparable ─────────────────────
+
+    // [NO COMPILA] — concept Divisible falla:
+    //   Coordenada no tiene operator/(size_t)
+    // auto mc = core_numeric::mean(vc);
+
+    // [NO COMPILA] — concept Comparable falla:
+    //   Coordenada no tiene operator< ni operator>
+    // auto mxc = core_numeric::max(vc);
+
+    // ── Variadic con string ───────────────────────────────────────────────
+
+    // [NO COMPILA] — concept Addable falla en variadic:
+    //   string no es numérico (no cumple Comparable que requiere Addable)
+    // auto sv = core_numeric::max_variadic(std::string{"a"}, std::string{"b"});
+
+    // ── int en variance_variadic: no cumple Divisible ─────────────────────
+    // [NO COMPILA] — int / size_t devuelve int, pero la division entera
+    //   puede causar imprecision. En nuestro concept Divisible se verifica
+    //   que a/n devuelve T. Para int funciona (division entera).
+    //   El caso realmente invalido es con tipos sin operator/:
+    // auto vvc = core_numeric::variance_variadic(
+    //     Coordenada{1,2}, Coordenada{3,4}); // NO COMPILA: no Divisible
+
+    return 0;
+}

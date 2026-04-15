@@ -1,0 +1,30 @@
+#ifndef VARIANCE_H
+#define VARIANCE_H
+
+#include "concepts.h"
+#include "mean.h"
+
+namespace core_numeric {
+
+    template <Iterable C>
+    requires Addable<typename C::value_type> && Divisible<typename C::value_type>
+    auto variance(const C& contenedor) {
+        using T = typename C::value_type;
+
+        T promedio = mean(contenedor);
+
+        T suma_cuadrados{};
+        std::size_t n = 0;
+
+        for (const auto& valor : contenedor) {
+            T d = valor - promedio;
+            suma_cuadrados = suma_cuadrados + (d * d);
+            ++n;
+        }
+
+        return suma_cuadrados / n;
+    }
+
+}
+
+#endif
